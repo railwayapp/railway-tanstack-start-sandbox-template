@@ -1,5 +1,7 @@
 # Dispatch: TanStack Start + AI sandboxes on Railway
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/LnGwdz?utm_medium=integration&utm_source=button&utm_campaign=tanstack-start-sandbox)
+
 A work tracker built with [TanStack Start](https://tanstack.com/start) and [TanStack AI](https://tanstack.com/ai), deployed on [Railway](https://railway.com). Every task has a **Run** button. Press it and a Railway sandbox boots, [Claude Code](https://docs.claude.com/en/docs/claude-code) works the task inside it, and each step lands in the task's activity feed.
 
 The sandbox work goes through TanStack AI's sandbox primitives: `defineSandbox` and `defineWorkspace` describe the sandbox, the [`@tanstack/ai-sandbox-railway`](https://www.npmjs.com/package/@tanstack/ai-sandbox-railway) provider creates it on Railway, `withSandbox` attaches it to a `chat()` call, and the [`@tanstack/ai-claude-code`](https://www.npmjs.com/package/@tanstack/ai-claude-code) harness runs Claude Code inside it.
@@ -16,7 +18,7 @@ The sandbox work goes through TanStack AI's sandbox primitives: `defineSandbox` 
 
 ## Quick start
 
-**Deploy:** create the template on Railway. It provisions the app and Postgres, generates the access password, runs the migrations, and gives you a URL. Then add two variables to the `web` service:
+**Deploy:** click **Deploy on Railway** above. It provisions the app and Postgres, generates the access password, runs the migrations, and gives you a URL. The deploy form asks for two values:
 
 | Variable | Where to get it |
 | --- | --- |

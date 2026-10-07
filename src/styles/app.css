@@ -1472,6 +1472,21 @@ select:focus-visible {
   border-radius: 99px;
   padding: 1px 8px;
 }
+.token-steps {
+  margin: 0 0 16px;
+  padding: 12px 16px 12px 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.token-steps a {
+  color: var(--accent);
+}
+
 .setting-badge[data-missing] {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));

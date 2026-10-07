@@ -18,24 +18,26 @@ Railway builds the app with Railpack and runs the Nitro output. Before each depl
 
 - PostgreSQL (provisioned by this template)
 - An Anthropic API key, for Claude Code
-- A Railway API token, for creating sandboxes
+- A Railway project token for the deployed environment, for creating sandboxes
 
 ### Deployment Dependencies
 
 - [TanStack AI sandbox docs](https://tanstack.com/ai/latest)
 - [Source repository](https://github.com/railwayapp/railway-tanstack-start-sandbox-template)
 - [Anthropic Console](https://console.anthropic.com) for an API key
-- [Railway tokens](https://docs.railway.com/integrations/api#creating-a-token)
+- [Railway project tokens](https://docs.railway.com/integrations/api#choosing-a-token-type)
 
 ### Implementation Details
 
-The template sets these variables on the `web` service. Add `ANTHROPIC_API_KEY` and `RAILWAY_API_TOKEN` after deploying.
+The deploy form asks for `ANTHROPIC_API_KEY`. The template also sets these variables on the `web` service:
 
 ```
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 DISPATCH_PASSWORD=${{secret(24)}}   # sign in with this
 SESSION_SECRET=${{secret(32)}}
 ```
+
+After deploying, create a project token for the environment (project Settings → Tokens) and add it to the `web` service as `RAILWAY_TOKEN`. A project token can only reach this environment, so the app never holds an account-wide credential.
 
 ## Why Deploy TanStack Start with AI Sandboxes on Railway?
 

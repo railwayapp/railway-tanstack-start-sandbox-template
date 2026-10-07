@@ -17,8 +17,10 @@ export const AGENT_MODEL = process.env.DISPATCH_MODEL || 'sonnet'
 export function missingRunConfig(): string[] {
   const missing: string[] = []
   if (!process.env.ANTHROPIC_API_KEY) missing.push('ANTHROPIC_API_KEY (Claude Code runs on it)')
-  if (!process.env.RAILWAY_API_TOKEN && !process.env.RAILWAY_TOKEN) {
-    missing.push('RAILWAY_API_TOKEN (creates the sandboxes)')
+  // A project token scoped to this environment is the least-privileged
+  // option. RAILWAY_API_TOKEN (an account or workspace token) also works.
+  if (!process.env.RAILWAY_TOKEN && !process.env.RAILWAY_API_TOKEN) {
+    missing.push('RAILWAY_TOKEN (a project token for this environment; creates the sandboxes)')
   }
   if (!process.env.RAILWAY_ENVIRONMENT_ID) {
     missing.push('RAILWAY_ENVIRONMENT_ID (Railway sets it on deployments; set it yourself locally)')
@@ -30,7 +32,7 @@ export function missingRunConfig(): string[] {
 export function sandboxForRun(runId: string, onReady: (sandboxId: string) => void) {
   return defineSandbox({
     id: `dispatch-${runId}`,
-    // Reads RAILWAY_API_TOKEN (or a RAILWAY_TOKEN project token) and
+    // Reads RAILWAY_TOKEN (a project token) or RAILWAY_API_TOKEN, plus
     // RAILWAY_ENVIRONMENT_ID, so sandboxes land in this app's own environment.
     // The idle timeout stays at the plan default (Trial and Free allow at most
     // 5 minutes); a running Claude Code session keeps the sandbox alive anyway.

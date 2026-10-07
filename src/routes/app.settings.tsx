@@ -13,7 +13,10 @@ export const Route = createFileRoute('/app/settings')({
 // Credentials live in Railway service variables, never in the app's database.
 const RUN_SETTINGS = [
   { name: 'ANTHROPIC_API_KEY', hint: 'Claude Code runs on this key inside each sandbox.' },
-  { name: 'RAILWAY_API_TOKEN', hint: 'Creates the sandboxes. An account or workspace token.' },
+  {
+    name: 'RAILWAY_TOKEN',
+    hint: 'A project token for this environment. Dispatch creates sandboxes with it, and it can reach nothing outside this environment.',
+  },
   { name: 'RAILWAY_ENVIRONMENT_ID', hint: 'Where sandboxes are created. Railway sets it automatically.' },
 ]
 
@@ -32,6 +35,24 @@ function SettingsPage() {
         Runs use the service variables below. Set them on this service in Railway, and the app picks them up
         on the next deploy. Values are never shown here.
       </p>
+      {runner.missing.some((m) => m.startsWith('RAILWAY_TOKEN')) && (
+        <ol className="token-steps">
+          <li>
+            {runner.tokensUrl ? (
+              <a href={runner.tokensUrl} target="_blank" rel="noreferrer">
+                Open this project's tokens page
+              </a>
+            ) : (
+              "Open your Railway project's Settings → Tokens"
+            )}{' '}
+            and create a token for the <strong>{runner.environmentName ?? 'current'}</strong> environment.
+          </li>
+          <li>
+            Add it to this service as a variable named <code className="mono">RAILWAY_TOKEN</code>.
+          </li>
+          <li>Deploy the change. Runs start working once the new deployment is live.</li>
+        </ol>
+      )}
       <div className="settings-list">
         {RUN_SETTINGS.map((s) => {
           const missing = runner.missing.some((m) => m.startsWith(s.name))

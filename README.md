@@ -18,20 +18,22 @@ The sandbox work goes through TanStack AI's sandbox primitives: `defineSandbox` 
 
 ## Quick start
 
-**Deploy:** click **Deploy on Railway** above. It provisions the app and Postgres, generates the access password, runs the migrations, and gives you a URL. The deploy form asks for two values:
+**Deploy:** click **Deploy on Railway** above and enter an `ANTHROPIC_API_KEY` from the [Anthropic Console](https://console.anthropic.com). Railway provisions the app and Postgres, generates the access password, runs the migrations, and gives you a URL.
 
-| Variable | Where to get it |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com) |
-| `RAILWAY_API_TOKEN` | Railway → Account Settings → Tokens. An account or workspace token that can create sandboxes in this project. |
+**Give it a project token.** Dispatch creates sandboxes with a Railway project token, which can only reach this project's environment:
 
-Sign in with the `DISPATCH_PASSWORD` variable Railway generated, open a task, and press **Run in Agent Sandbox**.
+1. In the new project, open **Settings → Tokens** and create a token for the `production` environment.
+2. Add it to the `web` service as a variable named `RAILWAY_TOKEN`, and deploy the change.
+
+The app's Settings page links to the tokens page and shows what's still missing.
+
+Then sign in with the `DISPATCH_PASSWORD` variable Railway generated, open a task, and press **Run in Agent Sandbox**.
 
 **Run locally** (Node 24+, Docker):
 
 ```bash
 npm install
-cp .env.example .env   # add ANTHROPIC_API_KEY, RAILWAY_API_TOKEN, RAILWAY_ENVIRONMENT_ID
+cp .env.example .env   # add ANTHROPIC_API_KEY, RAILWAY_TOKEN, RAILWAY_ENVIRONMENT_ID
 npm run db:up          # Postgres in Docker
 npm run db:migrate     # create tables and seed the Default project
 npm run dev            # http://localhost:3000
@@ -75,8 +77,8 @@ The template provisions two services:
 | `DATABASE_URL` | Template: `${{Postgres.DATABASE_URL}}` | Postgres over the private network |
 | `DISPATCH_PASSWORD` | Template: `${{secret(24)}}` | Access password for the app and the API |
 | `SESSION_SECRET` | Template: `${{secret(32)}}` | Encrypts the session cookie |
-| `ANTHROPIC_API_KEY` | You | Claude Code runs on it inside each sandbox |
-| `RAILWAY_API_TOKEN` | You | Creates the sandboxes |
+| `ANTHROPIC_API_KEY` | You, on the deploy form | Claude Code runs on it inside each sandbox |
+| `RAILWAY_TOKEN` | You, after deploy | A project token for this environment. Creates the sandboxes. (`RAILWAY_API_TOKEN`, an account or workspace token, also works but can reach everything you own.) |
 | `RAILWAY_ENVIRONMENT_ID` | Railway | Where sandboxes are created |
 | `DISPATCH_MODEL` | Optional | The model Claude Code uses (default `sonnet`) |
 
@@ -121,7 +123,7 @@ Without `DISPATCH_PASSWORD`, the app refuses access in production and runs open 
 | `npm run db:generate` | Generate a migration after editing [`src/db/schema.ts`](src/db/schema.ts) |
 | `npm run db:migrate` | Apply migrations and seed an empty database |
 
-Runs need `RAILWAY_ENVIRONMENT_ID` locally. Copy it from any service in the Railway project (`railway variables`), and the sandboxes are created there.
+Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project token you created and the environment it belongs to (`railway variables` shows the id), and the sandboxes are created there.
 
 ## Project structure
 
@@ -153,4 +155,5 @@ Runs need `RAILWAY_ENVIRONMENT_ID` locally. Copy it from any service in the Rail
 - **Use another harness.** TanStack AI has Codex, OpenCode and other harness adapters. Change `claudeCodeText(...)` in `runs.server.ts` and the matching secret in `sandbox.server.ts`.
 - **Limit what the agent can do.** Add a `defineSandboxPolicy` to the sandbox definition to deny commands.
 - **Reach your other services.** Pass `networkIsolation: 'PRIVATE'` to `railwaySandbox()` and the sandbox joins the environment's private network.
+- **Preview environments.** A project token only works in the environment it was created for, so a PR environment needs its own `RAILWAY_TOKEN` before its runs work.
 - **Scaling out.** Runs are driven by the server that started them, and cancel only reaches runs on the same replica. Keep the `web` service at one replica, or move run control to a queue.

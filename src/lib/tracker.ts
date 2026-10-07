@@ -125,7 +125,14 @@ export const wipeAllData = createServerFn({ method: 'POST' })
 // Public: only reports whether runs are configured, never the values.
 export const getRunnerStatus = createServerFn({ method: 'GET' }).handler(async () => {
   const { AGENT_MODEL, missingRunConfig } = await import('@/server/sandbox.server')
-  return { missing: missingRunConfig(), model: AGENT_MODEL }
+  const projectId = process.env.RAILWAY_PROJECT_ID
+  return {
+    missing: missingRunConfig(),
+    model: AGENT_MODEL,
+    environmentName: process.env.RAILWAY_ENVIRONMENT_NAME ?? null,
+    // Where a project token for this environment is created.
+    tokensUrl: projectId ? `https://railway.com/project/${projectId}/settings/tokens` : null,
+  }
 })
 
 // ————— runs —————

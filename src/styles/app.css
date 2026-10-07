@@ -1764,3 +1764,7 @@ select:focus-visible {
   color: var(--accent);
   white-space: normal;
 }
+
+.results-outputs {
+  margin-top: 8px;
+}

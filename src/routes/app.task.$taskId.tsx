@@ -34,18 +34,13 @@ function TaskDetail() {
   const running = activeRun != null
 
   // The final agent message of the last successful run — the "closed loop".
-  const agentResult =
+  // The typed report from the last successful run (see RunReport in runs.server.ts).
+  const finished =
     !running && lastRun?.status === 'succeeded'
-      ? (
-          (
-            feed.filter((a) => a.runId === lastRun.id && a.kind === 'agent_text').at(-1)?.payload as
-              | { text?: string }
-              | undefined
-          )?.text ??
-          lastRun.summary ??
-          ''
-        ).replace(/^SUMMARY:\s*/i, '') || null
-      : null
+      ? feed.find((a) => a.runId === lastRun.id && a.kind === 'run_finished')
+      : undefined
+  const agentResult = finished ? String(finished.payload.summary ?? lastRun?.summary ?? '') : null
+  const agentOutputs = Array.isArray(finished?.payload.outputs) ? finished.payload.outputs.map(String) : []
 
   // Polling while a run is active is handled declaratively by taskQuery's
   // refetchInterval (see src/lib/queries.ts).
@@ -225,6 +220,15 @@ function TaskDetail() {
             <CheckIcon /> Agent Results
           </h2>
           <div className="results-body">{agentResult}</div>
+          {agentOutputs.length > 0 && (
+            <div className="results-outputs">
+              {agentOutputs.map((o) => (
+                <span key={o} className="mono file-chip">
+                  {o.replace(/^\/workspace\//, '')}
+                </span>
+              ))}
+            </div>
+          )}
           {lastRun?.finishedAt && (
             <div className="results-meta mono">
               sandbox {String(lastRun.sandboxId ?? '').slice(0, 8)} · finished{' '}

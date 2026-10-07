@@ -55,8 +55,8 @@ flowchart LR
    - the workspace's `setup` makes sure the `claude` CLI is present;
    - `ANTHROPIC_API_KEY` comes from `createSecrets`, so it's injected into the sandbox and never stored;
    - the lifecycle is `reuse: 'none'` with `destroyOnComplete: true`, so each run gets a fresh sandbox that's gone when the run ends.
-2. **`chat()` drives the run.** [`src/server/runs.server.ts`](src/server/runs.server.ts) calls `chat({ adapter: claudeCodeText(model), middleware: [withSandbox(sandbox)] })`. The middleware creates the sandbox (in a few seconds on Railway) and hands it to the Claude Code harness, which runs `claude` inside it.
-3. **The stream becomes the activity feed.** The run reads the standard AG-UI events (text, tool calls and their results, `sandbox.file` events) and writes them to Postgres as activity rows. The task page polls them while a run is active.
+2. **`chat()` drives the run.** [`src/server/runs.server.ts`](src/server/runs.server.ts) calls `chat({ adapter: claudeCodeText(model), outputSchema: RunReport, middleware: [withSandbox(sandbox), feed.middleware] })`. `withSandbox` creates the sandbox (in a few seconds on Railway) and hands it to the Claude Code harness, which runs `claude` inside it. Because of `outputSchema`, the agent finishes with a typed `{ summary, outputs }` report instead of prose to parse.
+3. **A middleware records the activity feed.** [`src/server/activity-feed.server.ts`](src/server/activity-feed.server.ts) is a `defineChatMiddleware`: `onChunk` writes messages and tool calls (with their output) to Postgres as they happen, and its `sandbox.onFileCreate` / `onFileChange` hooks collect the files the agent changed. The task page polls the feed while a run is active.
 4. **Runs end cleanly.** A finished run moves the task to In Review with the agent's summary. Cancelling (with TanStack AI's `RUN_CANCEL_REASON`) or failing puts it back in To do. Every run has a 15-minute limit. On a redeploy, the old server cancels its runs as it shuts down. If a server dies mid-run, the run's heartbeat goes stale; it's marked failed and its sandbox is destroyed.
 
 The task is the `chat()` thread and each run is one execution of it. Runs are driven on the server, not streamed to a browser tab, so closing the tab doesn't stop the agent. TanStack AI also supports [durable runs](https://github.com/TanStack/ai/blob/main/docs/sandbox/durable-runs.md) that survive a server restart by journaling inside the sandbox; Dispatch keeps runs short and simple instead.
@@ -140,7 +140,8 @@ Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project 
     ├── routes/                  pages (/app/*), /login, /api/v1/*, /api/health
     ├── server/
     │   ├── sandbox.server.ts    defineSandbox: Railway provider, workspace, lifecycle
-    │   ├── runs.server.ts       chat() + withSandbox + Claude Code, the activity feed
+    │   ├── runs.server.ts       chat() + withSandbox + Claude Code, the typed run report
+    │   ├── activity-feed.server.ts  chat middleware that records the activity feed
     │   ├── tracker.functions.ts server functions for the UI
     │   ├── auth.functions.ts    sign-in server functions
     │   ├── middleware.ts        requireAuth function middleware

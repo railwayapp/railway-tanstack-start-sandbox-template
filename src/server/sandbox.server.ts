@@ -32,7 +32,9 @@ export function sandboxForRun(runId: string, onReady: (sandboxId: string) => voi
     id: `dispatch-${runId}`,
     // Reads RAILWAY_API_TOKEN (or a RAILWAY_TOKEN project token) and
     // RAILWAY_ENVIRONMENT_ID, so sandboxes land in this app's own environment.
-    provider: railwaySandbox({ idleTimeoutMinutes: 15 }),
+    // The idle timeout stays at the plan default (Trial and Free allow at most
+    // 5 minutes); a running Claude Code session keeps the sandbox alive anyway.
+    provider: railwaySandbox(),
     workspace: defineWorkspace({
       source: { type: 'none' },
       setup: ({ serial }) => serial(CLAUDE_CLI_SETUP),

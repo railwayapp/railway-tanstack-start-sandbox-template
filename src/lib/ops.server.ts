@@ -110,11 +110,11 @@ function lastNonEmptyLine(s: unknown): string {
 function summarizeActivity(kind: string, p: Record<string, unknown>): string {
   switch (kind) {
     case 'tool_call':
-      return `$ ${firstLine(p.command)}`
-    case 'tool_result':
       return p.running === true
-        ? `… ${lastNonEmptyLine(p.output) || 'running'}`
-        : `→ ${lastNonEmptyLine(p.output) || `exit ${p.exitCode ?? '?'}`}`
+        ? `… ${firstLine(p.call) || 'running'}`
+        : `$ ${firstLine(p.call)}${p.output ? ` → ${lastNonEmptyLine(p.output)}` : ''}`
+    case 'files_changed':
+      return Array.isArray(p.files) ? `changed ${p.files.length} file${p.files.length === 1 ? '' : 's'}` : ''
     case 'agent_text':
       return firstLine(p.text)
     case 'run_started':

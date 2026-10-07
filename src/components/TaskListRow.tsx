@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { TaskRowMenu } from '@/components/TaskRowMenu'
+import { runTask } from '@/lib/tracker'
 import type { TaskPriority, TaskStatus } from '@/db/schema'
 
 type RowTask = {
@@ -27,11 +28,7 @@ export function TaskListRow({
 }) {
   const queryClient = useQueryClient()
   const assign = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/v1/tasks/${task.id}/run`, { method: 'POST' })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
+    mutationFn: () => runTask({ data: { taskId: task.id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] })
       queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
@@ -58,7 +55,11 @@ export function TaskListRow({
       </span>
       <span className="t-col">
         <span className="title">{task.title}</span>
-        {lastAction && <span className="last-action mono">{lastAction}</span>}
+        {assign.error ? (
+          <span className="last-action row-error">{assign.error.message}</span>
+        ) : (
+          lastAction && <span className="last-action mono">{lastAction}</span>
+        )}
       </span>
       <button
         className="assign-btn"

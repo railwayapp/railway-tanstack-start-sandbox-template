@@ -1720,3 +1720,8 @@ select:focus-visible {
   border-radius: 6px;
   font-size: 11px;
 }
+
+.last-action.row-error {
+  color: var(--accent);
+  white-space: normal;
+}

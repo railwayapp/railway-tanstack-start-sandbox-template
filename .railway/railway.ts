@@ -6,7 +6,7 @@ import { defineRailway, postgres, preserve, project, service } from 'railway/iac
 export default defineRailway(() => {
   const db = postgres('Postgres')
 
-  const web = service('web', {
+  const web = service('Dispatch-Web', {
     // Railpack runs `npm run build`; Nitro outputs a self-contained server.
     start: 'node .output/server/index.mjs',
     // Apply Drizzle migrations (and seed a fresh database) before each

@@ -29,7 +29,7 @@ Railway builds the app with Railpack and runs the Nitro output. Before each depl
 
 ### Implementation Details
 
-The deploy form asks for `ANTHROPIC_API_KEY`. The template also sets these variables on the `web` service:
+The deploy form asks for `ANTHROPIC_API_KEY`. The template also sets these variables on the `Dispatch-Web` service:
 
 ```
 DATABASE_URL=${{Postgres.DATABASE_URL}}
@@ -37,7 +37,7 @@ DISPATCH_PASSWORD=${{secret(24)}}   # sign in with this
 SESSION_SECRET=${{secret(32)}}
 ```
 
-After deploying, create a project token for the environment (project Settings → Tokens) and add it to the `web` service as `RAILWAY_TOKEN`. A project token can only reach this environment, so the app never holds an account-wide credential.
+After deploying, create a project token for the environment (project Settings → Tokens) and add it to the `Dispatch-Web` service as `RAILWAY_TOKEN`. A project token can only reach this environment, so the app never holds an account-wide credential.
 
 ## Why Deploy TanStack Start with AI Sandboxes on Railway?
 

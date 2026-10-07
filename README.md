@@ -23,7 +23,7 @@ The sandbox work goes through TanStack AI's sandbox primitives: `defineSandbox` 
 **Give it a project token.** Dispatch creates sandboxes with a Railway project token, which can only reach this project's environment:
 
 1. In the new project, open **Settings → Tokens** and create a token for the `production` environment.
-2. Add it to the `web` service as a variable named `RAILWAY_TOKEN`, and deploy the change.
+2. Add it to the `Dispatch-Web` service as a variable named `RAILWAY_TOKEN`, and deploy the change.
 
 The app's Settings page links to the tokens page and shows what's still missing.
 
@@ -43,7 +43,7 @@ npm run dev            # http://localhost:3000
 
 ```mermaid
 flowchart LR
-  browser["Browser"] -- "Run" --> web["web<br/>TanStack Start"]
+  browser["Browser"] -- "Run" --> web["Dispatch-Web<br/>TanStack Start"]
   web -- "chat() + withSandbox" --> sandbox["Railway sandbox<br/>Claude Code"]
   sandbox -- "AG-UI events" --> web
   web -- "activity rows" --> db[("Postgres")]
@@ -67,7 +67,7 @@ The template provisions two services:
 
 | Service | Configuration |
 | --- | --- |
-| **web** (this repo) | Build: Railpack (`npm run build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
+| **Dispatch-Web** (this repo) | Build: Railpack (`npm run build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
 | **Postgres** | Railway Postgres |
 
 ### Environment variables
@@ -156,4 +156,4 @@ Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project 
 - **Limit what the agent can do.** Add a `defineSandboxPolicy` to the sandbox definition to deny commands.
 - **Reach your other services.** Pass `networkIsolation: 'PRIVATE'` to `railwaySandbox()` and the sandbox joins the environment's private network.
 - **Preview environments.** A project token only works in the environment it was created for, so a PR environment needs its own `RAILWAY_TOKEN` before its runs work.
-- **Scaling out.** Runs are driven by the server that started them, and cancel only reaches runs on the same replica. Keep the `web` service at one replica, or move run control to a queue.
+- **Scaling out.** Runs are driven by the server that started them, and cancel only reaches runs on the same replica. Keep the `Dispatch-Web` service at one replica, or move run control to a queue.

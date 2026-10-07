@@ -1,0 +1,27 @@
+[
+  {
+    "title": "Fetch the top 5 Hacker News stories and save them as JSON",
+    "priority": "high",
+    "description": "Use the Hacker News Firebase API (https://hacker-news.firebaseio.com/v0/topstories.json). Fetch the top 5 stories, keep title, url and score, write them to hn-top5.json, then print the file."
+  },
+  {
+    "title": "Report the sandbox's kernel and tooling",
+    "priority": "medium",
+    "description": "Run uname -a, node -v, git --version and df -h /. Write a short markdown report to vm-report.md and print it."
+  },
+  {
+    "title": "Stand up an HTTP health check and prove it responds",
+    "priority": "medium",
+    "description": "Create a minimal Node HTTP server in server.mjs on port 3000 with GET /health returning {\"ok\":true}. Start it in the background and curl it to prove it works."
+  },
+  {
+    "title": "Write a haiku about trains to a file and read it back",
+    "priority": "low",
+    "description": "Compose a haiku about trains, write it to haiku.txt, then print the file to check it landed."
+  },
+  {
+    "title": "Benchmark JSON.parse on a 10 MB payload",
+    "priority": "low",
+    "description": "Write bench.mjs that generates about 10 MB of JSON, parses it 10 times, and reports the average milliseconds per parse. Run it and report the number."
+  }
+]

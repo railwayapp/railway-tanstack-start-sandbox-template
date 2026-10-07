@@ -1,17 +1,17 @@
 // Server-only: the one implementation of tracker operations, shared by the
-// createServerFn wrappers (src/lib/tracker.ts) and the public REST API
-// (src/routes/api.v1.*). Import only via dynamic import from handlers.
+// server functions (tracker.functions.ts) and the REST API (src/routes/api.v1.*).
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
-import { activities, db, projects, runs, tasks, webhooks } from '@/db'
-import type { TaskPriority, TaskStatus } from '@/db/schema'
-import type { WebhookTopic } from '@/lib/topics'
+import { activities, db, projects, runs, tasks, webhooks } from './db.server'
+import type { TaskPriority, TaskStatus } from './schema'
+import type { WebhookTopic } from '~/lib/topics'
+import { seedDefaults } from './seed.server'
 
 export class NotFoundError extends Error {}
 
 // Runs whose server stopped mid-run are marked failed whenever the board is
-// read. Dynamic import: runs.server imports this module.
+// read. Imported lazily because runs.server imports this module.
 async function sweepStaleRuns() {
-  const { failStaleRuns } = await import('@/server/runs.server')
+  const { failStaleRuns } = await import('./runs.server')
   await failStaleRuns()
 }
 
@@ -158,7 +158,6 @@ export async function wipeAllDataOp() {
   await db.delete(webhooks)
   // Restore the Default starter project so the workspace is immediately
   // usable for revalidation after a wipe.
-  const { seedDefaults } = await import('@/lib/seed.server')
   await seedDefaults(db)
   return { ok: true }
 }
@@ -189,6 +188,8 @@ export async function listAllTasksOp() {
 
 export async function listTasksOp(projectId: string) {
   await sweepStaleRuns()
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId))
+  if (!project) throw new NotFoundError('project not found')
   const rows = await db.select().from(tasks).where(eq(tasks.projectId, projectId)).orderBy(desc(tasks.number))
   const runningIds =
     rows.length === 0
@@ -208,7 +209,7 @@ export async function listTasksOp(projectId: string) {
             )
         ).map((r) => r.taskId)
   const lastActions = await lastActionsFor(rows.map((r) => r.id))
-  return { tasks: rows, runningIds, lastActions }
+  return { project, tasks: rows, runningIds, lastActions }
 }
 
 export async function getTaskOp(taskId: string) {

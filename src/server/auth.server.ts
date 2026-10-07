@@ -1,7 +1,7 @@
 // Server-only: the access password gate. Dispatch has one shared password,
 // DISPATCH_PASSWORD (the template generates it). The browser signs in once and
-// keeps an encrypted session cookie; API clients send the same password as a
-// bearer token.
+// keeps an encrypted session cookie; REST API clients send the same password
+// as a bearer token.
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { getRequestHeader, useSession } from '@tanstack/react-start/server'
 
@@ -24,11 +24,17 @@ export function passwordMatches(candidate: string) {
   return timingSafeEqual(a, b)
 }
 
+function sessionSecret() {
+  const secret = process.env.SESSION_SECRET
+  if (secret && secret.length >= 32) return secret
+  // The dev default is public, so a production cookie sealed with it could be
+  // forged. Fail loudly instead.
+  if (isProduction) throw new Error('SESSION_SECRET must be set to at least 32 characters.')
+  return DEV_SESSION_SECRET
+}
+
 export function useAuthSession() {
-  const password = process.env.SESSION_SECRET ?? DEV_SESSION_SECRET
-  if (password === DEV_SESSION_SECRET && isProduction) {
-    console.warn('SESSION_SECRET is not set; using an insecure default.')
-  }
+  const password = sessionSecret()
   return useSession<AuthSession>({
     name: 'dispatch-session',
     password,
@@ -41,11 +47,20 @@ export function useAuthSession() {
   })
 }
 
-/** Whether the current request is signed in, by session cookie or bearer token. */
+/** Whether the browser's session cookie is signed in. */
 export async function isAuthenticated() {
   if (authDisabled()) return true
-  const header = getRequestHeader('authorization')
-  if (header?.startsWith('Bearer ') && passwordMatches(header.slice(7))) return true
   const session = await useAuthSession()
   return session.data.signedIn === true
+}
+
+/**
+ * Whether an API request carries the access password as a bearer token. The
+ * REST API accepts only this, not the session cookie, so a cross-site form
+ * can't make writes with a signed-in visitor's cookie.
+ */
+export function hasApiToken() {
+  if (authDisabled()) return true
+  const header = getRequestHeader('authorization')
+  return !!header?.startsWith('Bearer ') && passwordMatches(header.slice(7))
 }

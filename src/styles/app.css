@@ -170,12 +170,36 @@ select:focus-visible {
   max-width: 50ch;
 }
 
+.fallback-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.fallback-error {
+  max-width: min(640px, 100%);
+  overflow: auto;
+  text-align: left;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
   width: min(340px, 100%);
+}
+
+.login-form fieldset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .login-form input {

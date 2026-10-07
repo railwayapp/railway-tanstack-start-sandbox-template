@@ -1,19 +1,25 @@
 // Server-only: the run engine. A run hands a task to Claude Code running in a
 // fresh Railway sandbox (see sandbox.server.ts) and records what the agent does
 // as the task's activity feed.
-import { chat } from '@tanstack/ai'
-import type { StreamChunk } from '@tanstack/ai'
+import { RUN_CANCEL_REASON, chat } from '@tanstack/ai'
+import type { ChatStream } from '@tanstack/ai'
 import { claudeCodeText } from '@tanstack/ai-claude-code'
 import { withSandbox } from '@tanstack/ai-sandbox'
 import { and, eq, lt } from 'drizzle-orm'
-import { activities, db, runs, tasks } from '@/db'
-import type { ActivityKind, ActivityPayload } from '@/db'
-import { emitWebhook } from '@/lib/ops.server'
-import { AGENT_MODEL, missingRunConfig, sandboxForRun } from './sandbox.server'
+import { activities, db, runs, tasks } from './db.server'
+import type { ActivityKind, ActivityPayload } from './schema'
+import { emitWebhook } from './ops.server'
+import { AGENT_MODEL, missingRunConfig, sandboxForRun, sandboxProvider } from './sandbox.server'
+
+type RunChunk = ChatStream extends AsyncIterable<infer C> ? C : never
 
 const HEARTBEAT_MS = 10_000
 const STALE_AFTER_MS = 60_000
 const RUN_TIMEOUT_MS = 15 * 60_000
+// Abort reasons. RUN_CANCEL_REASON is TanStack AI's marker for an explicit
+// cancel; anything else is a failure.
+const TIMEOUT_REASON = 'dispatch:timeout'
+const SHUTDOWN_REASON = 'dispatch:shutdown'
 
 const SYSTEM_PROMPT = [
   'You are the Dispatch task agent. You work inside a fresh, disposable Railway sandbox.',
@@ -23,7 +29,21 @@ const SYSTEM_PROMPT = [
 ].join('\n')
 
 /** Runs this server process is driving, so they can be cancelled. */
-const activeRuns = new Map<string, AbortController>()
+const activeRuns = new Map<string, { controller: AbortController; done: Promise<void> }>()
+
+// On a redeploy Railway stops the old deployment with SIGTERM. Abort its runs
+// so withSandbox destroys their sandboxes instead of leaving agents working,
+// give them a few seconds to finish, then exit. (A SIGTERM listener replaces
+// Node's default exit, so the exit has to be explicit.)
+process.once('SIGTERM', async () => {
+  const runs = [...activeRuns.values()]
+  for (const run of runs) run.controller.abort(SHUTDOWN_REASON)
+  await Promise.race([
+    Promise.allSettled(runs.map((run) => run.done)),
+    new Promise((resolve) => setTimeout(resolve, 10_000)),
+  ])
+  process.exit(0)
+})
 
 export class RunConflictError extends Error {}
 
@@ -43,19 +63,22 @@ export async function startRun(taskId: string) {
 
   // The run continues after this request returns. The UI follows it through
   // the activity feed.
-  void driveRun(run.id, task).catch((err) => console.error(`[run ${run.id}]`, err))
+  const controller = new AbortController()
+  const done = driveRun(run.id, task, controller).catch((err) => console.error(`[run ${run.id}]`, err))
+  activeRuns.set(run.id, { controller, done })
   return { runId: run.id }
 }
 
 export function cancelRun(runId: string) {
-  const controller = activeRuns.get(runId)
-  controller?.abort(new Error('Cancelled'))
-  return { cancelled: !!controller }
+  const run = activeRuns.get(runId)
+  run?.controller.abort(RUN_CANCEL_REASON)
+  return { cancelled: !!run }
 }
 
 /**
- * Marks runs whose server stopped driving them (a redeploy or crash) as
- * failed, and puts their tasks back in To do.
+ * Marks runs whose server stopped driving them (a crash, or a redeploy that
+ * didn't finish cleanly) as failed, puts their tasks back in To do, and
+ * destroys their sandboxes so the agent stops working.
  */
 export async function failStaleRuns() {
   const stale = await db
@@ -66,13 +89,15 @@ export async function failStaleRuns() {
   for (const run of stale) {
     await db.update(tasks).set({ status: 'todo', updatedAt: new Date() }).where(eq(tasks.id, run.taskId))
     await record(run.taskId, run.id, 'run_error', { error: run.summary })
+    if (run.sandboxId)
+      await sandboxProvider()
+        .destroy({ id: run.sandboxId })
+        .catch(() => {})
   }
 }
 
-async function driveRun(runId: string, task: typeof tasks.$inferSelect) {
-  const abort = new AbortController()
-  activeRuns.set(runId, abort)
-  const timeout = setTimeout(() => abort.abort(new Error('The run hit its 15 minute limit.')), RUN_TIMEOUT_MS)
+async function driveRun(runId: string, task: typeof tasks.$inferSelect, abort: AbortController) {
+  const timeout = setTimeout(() => abort.abort(TIMEOUT_REASON), RUN_TIMEOUT_MS)
   const heartbeat = setInterval(() => {
     void db
       .update(runs)
@@ -94,8 +119,11 @@ async function driveRun(runId: string, task: typeof tasks.$inferSelect) {
     })
 
     const stream = chat({
-      adapter: claudeCodeText(AGENT_MODEL),
-      threadId: runId,
+      // Claude Code may run commands without asking (the default in a
+      // sandbox). /workspace isn't a git repo, so skip the end-of-run diff.
+      adapter: claudeCodeText(AGENT_MODEL(), { permissionMode: 'bypassPermissions', emitDiff: false }),
+      // A task is the conversation; each run is one execution of it.
+      threadId: task.id,
       runId,
       systemPrompts: [SYSTEM_PROMPT],
       messages: [
@@ -111,7 +139,7 @@ async function driveRun(runId: string, task: typeof tasks.$inferSelect) {
     for await (const chunk of stream) await feed.handle(chunk)
     await feed.flush()
     // An aborted chat() ends its stream quietly instead of throwing.
-    if (abort.signal.aborted) throw abort.signal.reason
+    if (abort.signal.aborted) throw new Error('aborted')
     if (feed.error) throw new Error(feed.error)
 
     const summary = feed.summary()
@@ -126,10 +154,18 @@ async function driveRun(runId: string, task: typeof tasks.$inferSelect) {
     void emitWebhook('run.finished', { taskId: task.id, runId, summary })
   } catch (err) {
     await feed.flush().catch(() => {})
-    const cancelled = abort.signal.aborted
-    const reason = abort.signal.reason
+    const reason: unknown = abort.signal.aborted ? abort.signal.reason : undefined
+    const cancelled = reason === RUN_CANCEL_REASON
     const message =
-      reason instanceof Error ? reason.message : err instanceof Error ? err.message : String(err)
+      reason === RUN_CANCEL_REASON
+        ? 'Cancelled.'
+        : reason === TIMEOUT_REASON
+          ? 'The run hit its 15 minute limit.'
+          : reason === SHUTDOWN_REASON
+            ? 'The server restarted during the run.'
+            : err instanceof Error
+              ? err.message
+              : String(err)
     await db
       .update(runs)
       .set({ status: cancelled ? 'cancelled' : 'failed', summary: message, finishedAt: new Date() })
@@ -182,7 +218,7 @@ class FeedRecorder {
     private runId: string,
   ) {}
 
-  async handle(chunk: StreamChunk) {
+  async handle(chunk: RunChunk) {
     switch (chunk.type) {
       case 'TEXT_MESSAGE_CONTENT':
         this.text += chunk.delta
@@ -193,7 +229,7 @@ class FeedRecorder {
         break
       case 'TOOL_CALL_START': {
         await this.flush()
-        const name = chunk.toolCallName ?? chunk.toolName ?? 'tool'
+        const name = chunk.toolCallName
         const row = await record(this.taskId, this.runId, 'tool_call', {
           tool: name,
           call: name,
@@ -225,7 +261,7 @@ class FeedRecorder {
       }
       case 'CUSTOM':
         if (chunk.name === 'sandbox.file') {
-          const path = (chunk.value as { path?: string } | undefined)?.path
+          const path = chunk.value.path
           if (path && !isHarnessFile(path)) this.files.add(path)
         }
         break

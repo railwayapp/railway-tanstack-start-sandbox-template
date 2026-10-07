@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import * as ops from '~/server/ops.server'
 import { z } from 'zod'
 
 const patchBody = z.object({
@@ -10,7 +11,6 @@ export const Route = createFileRoute('/api/v1/projects/$projectId')({
   server: {
     handlers: {
       PATCH: async ({ request, params }) => {
-        const ops = await import('@/lib/ops.server')
         const body = await request.json().catch(() => null)
         const parsed = patchBody.safeParse(body)
         if (!parsed.success || Object.keys(parsed.data).length === 0) {
@@ -24,7 +24,6 @@ export const Route = createFileRoute('/api/v1/projects/$projectId')({
         }
       },
       DELETE: async ({ params }) => {
-        const ops = await import('@/lib/ops.server')
         try {
           return Response.json(await ops.deleteProjectOp(params.projectId))
         } catch (err) {

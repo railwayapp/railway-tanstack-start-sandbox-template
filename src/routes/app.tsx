@@ -1,18 +1,22 @@
 import { useState } from 'react'
 import { Link, Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { createProject, deleteProject, projectsQuery, updateProject } from '@/lib/tracker'
-import { Menu } from '@/components/Menu'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { getAuthState } from '@/server/auth'
+import { useServerFn } from '@tanstack/react-start'
+import { allTasksQuery, projectsQuery } from '~/lib/queries'
+import { createProject, deleteProject, updateProject } from '~/server/tracker.functions'
+import { Menu } from '~/components/Menu'
+import { ConfirmDialog } from '~/components/ConfirmDialog'
+import { getAuthState } from '~/server/auth.functions'
 
 export const Route = createFileRoute('/app')({
   // Everything under /app needs the access password.
   beforeLoad: async ({ location }) => {
     const auth = await getAuthState()
-    if (!auth.signedIn) throw redirect({ to: '/login', search: { next: location.href } })
+    if (!auth.signedIn) throw redirect({ to: '/login', search: { redirect: location.href } })
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(projectsQuery),
+  // Signed-in pages are private to this visitor.
+  headers: () => ({ 'Cache-Control': 'private, no-store' }),
+  loader: ({ context }) => context.queryClient.query(projectsQuery),
   component: AppShell,
 })
 
@@ -23,21 +27,27 @@ function AppShell() {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null)
+  const updateProjectFn = useServerFn(updateProject)
+  const deleteProjectFn = useServerFn(deleteProject)
 
   const rename = useMutation({
-    mutationFn: (input: { id: string; name: string }) => updateProject({ data: input }),
+    mutationFn: (input: { id: string; name: string }) => updateProjectFn({ data: input }),
     onSuccess: () => {
       setRenamingId(null)
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
+      ])
     },
   })
   const remove = useMutation({
-    mutationFn: (id: string) => deleteProject({ data: { id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
-      navigate({ to: '/app/all' })
+    mutationFn: (id: string) => deleteProjectFn({ data: { id } }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
+      ])
+      await navigate({ to: '/app/all' })
     },
   })
 
@@ -52,7 +62,7 @@ function AppShell() {
           Dispatch
         </Link>
         <span className="label">Projects</span>
-        <Link to="/app/all" className="proj-link" activeProps={{ 'data-status': 'active' } as never}>
+        <Link to="/app/all" className="proj-link">
           <GridIcon />
           All Projects
         </Link>
@@ -77,12 +87,7 @@ function AppShell() {
             </form>
           ) : (
             <div className="proj-row" key={p.id}>
-              <Link
-                to="/app/$projectId"
-                params={{ projectId: p.id }}
-                className="proj-link"
-                activeProps={{ 'data-status': 'active' } as never}
-              >
+              <Link to="/app/$projectId" params={{ projectId: p.id }} className="proj-link">
                 <span className="swatch" style={{ background: p.color }} />
                 {p.name}
                 <span className="key">{p.key}</span>
@@ -111,12 +116,12 @@ function AppShell() {
         <span className="label" style={{ marginTop: 14 }}>
           Workspace
         </span>
-        <Link to="/app/webhooks" className="proj-link" activeProps={{ 'data-status': 'active' } as never}>
+        <Link to="/app/webhooks" className="proj-link">
           <HookIcon />
           Webhooks
         </Link>
         <div className="sidebar-bottom">
-          <Link to="/app/settings" className="proj-link" activeProps={{ 'data-status': 'active' } as never}>
+          <Link to="/app/settings" className="proj-link">
             <GearIcon />
             Settings
           </Link>
@@ -203,13 +208,14 @@ function NewProject() {
   const [name, setName] = useState('')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const createProjectFn = useServerFn(createProject)
 
   const create = useMutation({
-    mutationFn: (n: string) => createProject({ data: { name: n } }),
+    mutationFn: (n: string) => createProjectFn({ data: { name: n } }),
     onSuccess: async (project) => {
       setName('')
       setOpen(false)
-      await queryClient.invalidateQueries({ queryKey: ['projects'] })
+      await queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey })
       navigate({ to: '/app/$projectId', params: { projectId: project.id } })
     },
   })

@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { allTasksQuery, createTask, projectsQuery } from '@/lib/tracker'
-import { TaskListRow } from '@/components/TaskListRow'
-import type { TaskPriority, TaskStatus } from '@/db/schema'
+import { useServerFn } from '@tanstack/react-start'
+import { allTasksQuery, projectsQuery, tasksQuery } from '~/lib/queries'
+import { createTask } from '~/server/tracker.functions'
+import { TaskListRow } from '~/components/TaskListRow'
+import type { TaskPriority, TaskStatus } from '~/server/schema'
 
 export const Route = createFileRoute('/app/all')({
+  head: () => ({ meta: [{ title: 'All projects · Dispatch' }] }),
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(allTasksQuery),
-      context.queryClient.ensureQueryData(projectsQuery),
-    ])
+    await Promise.all([context.queryClient.query(allTasksQuery), context.queryClient.query(projectsQuery)])
   },
   component: AllProjects,
 })
@@ -34,12 +34,15 @@ function AllProjects() {
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const targetProject = projectId || projects[0]?.id || ''
 
+  const createTaskFn = useServerFn(createTask)
   const create = useMutation({
-    mutationFn: () => createTask({ data: { projectId: targetProject, title: title.trim(), priority } }),
+    mutationFn: () => createTaskFn({ data: { projectId: targetProject, title: title.trim(), priority } }),
     onSuccess: () => {
       setTitle('')
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['tasks', targetProject] })
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: tasksQuery(targetProject).queryKey }),
+      ])
     },
   })
 

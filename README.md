@@ -29,14 +29,14 @@ The app's Settings page links to the tokens page and shows what's still missing.
 
 Then sign in with the `DISPATCH_PASSWORD` variable Railway generated, open a task, and press **Run in Agent Sandbox**.
 
-**Run locally** (Node 24+, Docker):
+**Run locally** (Node 24+, pnpm, Docker):
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env   # add ANTHROPIC_API_KEY, RAILWAY_TOKEN, RAILWAY_ENVIRONMENT_ID
-npm run db:up          # Postgres in Docker
-npm run db:migrate     # create tables and seed the Default project
-npm run dev            # http://localhost:3000
+pnpm db:up             # Postgres in Docker
+pnpm db:migrate        # create tables and seed the Default project
+pnpm dev               # http://localhost:3000
 ```
 
 ## How a run works
@@ -57,7 +57,9 @@ flowchart LR
    - the lifecycle is `reuse: 'none'` with `destroyOnComplete: true`, so each run gets a fresh sandbox that's gone when the run ends.
 2. **`chat()` drives the run.** [`src/server/runs.server.ts`](src/server/runs.server.ts) calls `chat({ adapter: claudeCodeText(model), middleware: [withSandbox(sandbox)] })`. The middleware creates the sandbox (in a few seconds on Railway) and hands it to the Claude Code harness, which runs `claude` inside it.
 3. **The stream becomes the activity feed.** The run reads the standard AG-UI events (text, tool calls and their results, `sandbox.file` events) and writes them to Postgres as activity rows. The task page polls them while a run is active.
-4. **Runs end cleanly.** A finished run moves the task to In Review with the agent's summary. Cancelling or failing puts it back in To do. Every run has a 15-minute limit. If the server stops mid-run (a redeploy, a crash), the run's heartbeat goes stale and it's marked failed.
+4. **Runs end cleanly.** A finished run moves the task to In Review with the agent's summary. Cancelling (with TanStack AI's `RUN_CANCEL_REASON`) or failing puts it back in To do. Every run has a 15-minute limit. On a redeploy, the old server cancels its runs as it shuts down. If a server dies mid-run, the run's heartbeat goes stale; it's marked failed and its sandbox is destroyed.
+
+The task is the `chat()` thread and each run is one execution of it. Runs are driven on the server, not streamed to a browser tab, so closing the tab doesn't stop the agent. TanStack AI also supports [durable runs](https://github.com/TanStack/ai/blob/main/docs/sandbox/durable-runs.md) that survive a server restart by journaling inside the sandbox; Dispatch keeps runs short and simple instead.
 
 The sandboxes are created in the app's own Railway environment, using `RAILWAY_ENVIRONMENT_ID`, which Railway sets on every deployment.
 
@@ -67,7 +69,7 @@ The template provisions two services:
 
 | Service | Configuration |
 | --- | --- |
-| **Dispatch-Web** (this repo) | Build: Railpack (`npm run build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
+| **Dispatch-Web** (this repo) | Build: Railpack (`pnpm build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
 | **Postgres** | Railway Postgres |
 
 ### Environment variables
@@ -84,7 +86,7 @@ The template provisions two services:
 
 ### What happens on each deploy
 
-1. **Build.** Railpack installs dependencies and runs `npm run build`. Nitro writes a self-contained server to `.output/`.
+1. **Build.** Railpack installs dependencies with pnpm and runs `pnpm build`. Nitro writes a self-contained server to `.output/`.
 2. **Pre-deploy.** [`scripts/migrate.mjs`](scripts/migrate.mjs) waits for Postgres, applies the Drizzle migrations in `drizzle/`, and seeds the Default project on a fresh database. If it fails, the deploy stops and the previous version keeps serving.
 3. **Health check.** The new deployment receives traffic only after `/api/health` can reach the database.
 
@@ -94,8 +96,8 @@ The template provisions two services:
 
 Everything except the landing page, `/login` and `/api/health` needs the access password:
 
-- **In the browser**, `/login` exchanges it for an encrypted session cookie.
-- **For the API**, send it as a bearer token.
+- **In the browser**, `/login` exchanges it for an encrypted session cookie. Signed-in pages and server functions check it.
+- **For the REST API**, send it as a bearer token. The API doesn't accept the session cookie, so a cross-site form can't write with a signed-in visitor's cookie.
 
 ```bash
 export AUTH="authorization: Bearer $DISPATCH_PASSWORD"
@@ -107,21 +109,21 @@ curl -s -H "$AUTH" $APP_URL/api/v1/tasks/<taskId>                  # task, feed,
 curl -s -X DELETE -H "$AUTH" $APP_URL/api/v1/tasks/<taskId>/run   # cancel
 ```
 
-The UI and the API share one set of operations ([`src/lib/ops.server.ts`](src/lib/ops.server.ts)). Webhooks (Settings → Webhooks) POST task and run events to your URLs.
+The UI and the API share one set of operations ([`src/server/ops.server.ts`](src/server/ops.server.ts)). Webhooks (Settings → Webhooks) POST task and run events to your URLs.
 
-Without `DISPATCH_PASSWORD`, the app refuses access in production and runs open in local development.
+Without `DISPATCH_PASSWORD`, the app refuses access in production and runs open in local development. In production it also refuses to start sessions without a `SESSION_SECRET` of 32+ characters.
 
 ## Developing locally
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` | Vite dev server on http://localhost:3000 |
-| `npm run build` | Production build to `.output/` |
-| `npm start` | Run the production build |
-| `npm run typecheck` | TypeScript checks |
-| `npm run db:up` | Start Postgres in Docker |
-| `npm run db:generate` | Generate a migration after editing [`src/db/schema.ts`](src/db/schema.ts) |
-| `npm run db:migrate` | Apply migrations and seed an empty database |
+| `pnpm dev` | Vite dev server on http://localhost:3000 |
+| `pnpm build` | Production build to `.output/` |
+| `pnpm start` | Run the production build |
+| `pnpm typecheck` | TypeScript checks |
+| `pnpm db:up` | Start Postgres in Docker |
+| `pnpm db:generate` | Generate a migration after editing [`src/server/schema.ts`](src/server/schema.ts) |
+| `pnpm db:migrate` | Apply migrations and seed an empty database |
 
 Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project token you created and the environment it belongs to (`railway variables` shows the id), and the sandboxes are created there.
 
@@ -129,23 +131,26 @@ Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project 
 
 ```
 .
-├── .railway/railway.ts       Railway infrastructure as code
-├── drizzle/                  generated SQL migrations (committed)
-├── scripts/migrate.mjs       pre-deploy: wait for Postgres, migrate, seed
+├── .railway/railway.ts          Railway infrastructure as code
+├── drizzle/                     generated SQL migrations (committed)
+├── scripts/migrate.mjs          pre-deploy: wait for Postgres, migrate, seed
 └── src/
-    ├── start.ts              CSRF + API auth middleware
-    ├── router.tsx            router + per-request QueryClient
-    ├── db/                   Drizzle schema and client
+    ├── start.ts                 CSRF + REST API auth middleware
+    ├── router.tsx               router + per-request QueryClient
+    ├── routes/                  pages (/app/*), /login, /api/v1/*, /api/health
     ├── server/
-    │   ├── sandbox.server.ts defineSandbox: Railway provider, workspace, lifecycle
-    │   ├── runs.server.ts    chat() + withSandbox + Claude Code, the activity feed
-    │   ├── auth.ts           sign-in server functions, requireAuth middleware
-    │   └── auth.server.ts    password check and session cookie
+    │   ├── sandbox.server.ts    defineSandbox: Railway provider, workspace, lifecycle
+    │   ├── runs.server.ts       chat() + withSandbox + Claude Code, the activity feed
+    │   ├── tracker.functions.ts server functions for the UI
+    │   ├── auth.functions.ts    sign-in server functions
+    │   ├── middleware.ts        requireAuth function middleware
+    │   ├── ops.server.ts        tracker operations shared by the UI and the API
+    │   ├── auth.server.ts       password check and session cookie
+    │   ├── db.server.ts         Postgres client (server-only)
+    │   └── schema.ts            Drizzle schema
     ├── lib/
-    │   ├── tracker.ts        server functions and query options for the UI
-    │   ├── ops.server.ts     tracker operations shared by the UI and the API
-    │   └── seed-tasks.json   the Default project's starter tasks
-    ├── routes/               pages (/app/*), /login, /api/v1/*, /api/health
+    │   ├── queries.ts           query options shared by loaders and components
+    │   └── seed-tasks.json      the Default project's starter tasks
     └── components/
 ```
 

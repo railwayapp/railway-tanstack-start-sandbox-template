@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { createTask, projectsQuery, tasksQuery } from '@/lib/tracker'
-import { TaskListRow } from '@/components/TaskListRow'
-import type { TaskPriority, TaskStatus } from '@/db/schema'
+import { useServerFn } from '@tanstack/react-start'
+import { tasksQuery } from '~/lib/queries'
+import { NotFound } from '~/components/NotFound'
+import { createTask } from '~/server/tracker.functions'
+import { TaskListRow } from '~/components/TaskListRow'
+import type { TaskPriority, TaskStatus } from '~/server/schema'
 
 export const Route = createFileRoute('/app/$projectId')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(tasksQuery(params.projectId)),
+  // A missing project makes the server function throw notFound().
+  loader: async ({ context, params }) => {
+    const { project } = await context.queryClient.query(tasksQuery(params.projectId))
+    return { title: project.name }
+  },
+  head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.title ?? 'Project'} · Dispatch` }] }),
+  // Rendered inside the /app layout, so the sidebar stays.
+  notFoundComponent: () => <NotFound />,
   component: Board,
 })
 
@@ -21,29 +31,21 @@ const STATUS_ORDER: { id: TaskStatus; label: string }[] = [
 function Board() {
   const { projectId } = Route.useParams()
   const { data } = useSuspenseQuery(tasksQuery(projectId))
-  const { tasks, runningIds, lastActions } = data
-  const { data: projects } = useSuspenseQuery(projectsQuery)
-  const project = projects.find((p) => p.id === projectId)
+  const { project, tasks, runningIds, lastActions } = data
   const queryClient = useQueryClient()
+  const createTaskFn = useServerFn(createTask)
 
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('medium')
 
   const create = useMutation({
     mutationFn: (data: { title: string; priority: TaskPriority }) =>
-      createTask({ data: { projectId, ...data } }),
+      createTaskFn({ data: { projectId, ...data } }),
     onSuccess: () => {
       setTitle('')
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
+      return queryClient.invalidateQueries({ queryKey: tasksQuery(projectId).queryKey })
     },
   })
-
-  if (!project)
-    return (
-      <div className="empty" style={{ padding: 28 }}>
-        Project not found.
-      </div>
-    )
 
   return (
     <div>

@@ -1,40 +1,46 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { createWebhook, deleteWebhook, updateWebhook, webhooksQuery } from '@/lib/tracker'
-import { WEBHOOK_TOPICS } from '@/lib/topics'
+import { useServerFn } from '@tanstack/react-start'
+import { webhooksQuery } from '~/lib/queries'
+import { createWebhook, deleteWebhook, updateWebhook } from '~/server/tracker.functions'
+import { WEBHOOK_TOPICS } from '~/lib/topics'
 
 export const Route = createFileRoute('/app/webhooks')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(webhooksQuery),
+  head: () => ({ meta: [{ title: 'Webhooks · Dispatch' }] }),
+  loader: ({ context }) => context.queryClient.query(webhooksQuery),
   component: WebhooksPage,
 })
 
 function WebhooksPage() {
   const { data: hooks } = useSuspenseQuery(webhooksQuery)
   const queryClient = useQueryClient()
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['webhooks'] })
+  const createWebhookFn = useServerFn(createWebhook)
+  const updateWebhookFn = useServerFn(updateWebhook)
+  const deleteWebhookFn = useServerFn(deleteWebhook)
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: webhooksQuery.queryKey })
 
   const [url, setUrl] = useState('')
   const [topics, setTopics] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const create = useMutation({
-    mutationFn: () => createWebhook({ data: { url: url.trim(), topics } }),
+    mutationFn: () => createWebhookFn({ data: { url: url.trim(), topics } }),
     onSuccess: () => {
       setUrl('')
       setTopics([])
       setError(null)
-      invalidate()
+      return invalidate()
     },
     onError: (e) => setError(e instanceof Error ? e.message : 'failed to create webhook'),
   })
   const toggle = useMutation({
     mutationFn: (h: { id: string; enabled: boolean }) =>
-      updateWebhook({ data: { id: h.id, enabled: !h.enabled } }),
+      updateWebhookFn({ data: { id: h.id, enabled: !h.enabled } }),
     onSuccess: invalidate,
   })
   const remove = useMutation({
-    mutationFn: (id: string) => deleteWebhook({ data: { id } }),
+    mutationFn: (id: string) => deleteWebhookFn({ data: { id } }),
     onSuccess: invalidate,
   })
 

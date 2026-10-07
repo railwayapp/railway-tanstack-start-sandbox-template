@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
-import { runnerStatusQuery, wipeAllData } from '@/lib/tracker'
-import { signOut } from '@/server/auth'
+import { runConfigQuery } from '~/lib/queries'
+import { signOut } from '~/server/auth.functions'
+import { wipeAllData } from '~/server/tracker.functions'
 
 export const Route = createFileRoute('/app/settings')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(runnerStatusQuery),
+  head: () => ({ meta: [{ title: 'Settings · Dispatch' }] }),
+  loader: ({ context }) => context.queryClient.query(runConfigQuery),
   component: SettingsPage,
 })
 
@@ -21,11 +24,18 @@ const RUN_SETTINGS = [
 ]
 
 function SettingsPage() {
-  const { data: runner } = useSuspenseQuery(runnerStatusQuery)
+  const { data: runner } = useSuspenseQuery(runConfigQuery)
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const signOutFn = useServerFn(signOut)
   const logout = useMutation({
-    mutationFn: () => signOut(),
-    onSuccess: () => router.navigate({ to: '/login' }),
+    mutationFn: () => signOutFn(),
+    // Drop the signed-in visitor's cached data before leaving.
+    onSuccess: async () => {
+      queryClient.clear()
+      await router.invalidate()
+      await router.navigate({ to: '/login' })
+    },
   })
 
   return (
@@ -91,6 +101,7 @@ const WIPE_PHRASE = 'delete all data'
 
 function DangerZone() {
   const queryClient = useQueryClient()
+  const wipeAllDataFn = useServerFn(wipeAllData)
   const [open, setOpen] = useState(false)
   const [phrase, setPhrase] = useState('')
   const [wiped, setWiped] = useState(false)
@@ -105,7 +116,7 @@ function DangerZone() {
   }, [open])
 
   const wipe = useMutation({
-    mutationFn: () => wipeAllData({ data: { confirmation: WIPE_PHRASE } }),
+    mutationFn: () => wipeAllDataFn({ data: { confirmation: WIPE_PHRASE } }),
     onSuccess: () => {
       setOpen(false)
       setPhrase('')

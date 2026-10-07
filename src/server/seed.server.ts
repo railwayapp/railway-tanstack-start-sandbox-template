@@ -1,9 +1,9 @@
 // Server-only: restores the Default starter project after "Delete all data".
 // Fresh databases are seeded by scripts/migrate.mjs from the same task list.
-import { projects, tasks } from '@/db/schema'
-import type { TaskPriority } from '@/db/schema'
-import type { db as Db } from '@/db'
-import seedTasks from './seed-tasks.json'
+import type { db as Db } from './db.server'
+import { projects, tasks } from './schema'
+import type { TaskPriority } from './schema'
+import seedTasks from '~/lib/seed-tasks.json'
 
 export async function seedDefaults(db: typeof Db) {
   const [project] = await db

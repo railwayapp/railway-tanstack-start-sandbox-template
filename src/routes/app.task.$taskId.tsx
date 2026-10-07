@@ -1,13 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { cancelRun, deleteTask, duplicateTask, runTask, taskQuery, updateTask } from '@/lib/tracker'
-import { Menu } from '@/components/Menu'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
-import type { ActivityPayload, TaskPriority, TaskStatus } from '@/db/schema'
+import { useServerFn } from '@tanstack/react-start'
+import { allTasksQuery, taskQuery, tasksQuery } from '~/lib/queries'
+import { NotFound } from '~/components/NotFound'
+import { cancelRun, deleteTask, duplicateTask, runTask, updateTask } from '~/server/tracker.functions'
+import { Menu } from '~/components/Menu'
+import { ConfirmDialog } from '~/components/ConfirmDialog'
+import type { ActivityPayload, TaskPriority, TaskStatus } from '~/server/schema'
 
 export const Route = createFileRoute('/app/task/$taskId')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(taskQuery(params.taskId)),
+  // A missing task makes the server function throw notFound().
+  loader: async ({ context, params }) => {
+    const { task } = await context.queryClient.query(taskQuery(params.taskId))
+    return { title: task.title }
+  },
+  head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.title ?? 'Task'} · Dispatch` }] }),
+  // Rendered inside the /app layout, so the sidebar stays.
+  notFoundComponent: () => <NotFound />,
   component: TaskDetail,
 })
 
@@ -16,6 +26,11 @@ function TaskDetail() {
   const { data } = useSuspenseQuery(taskQuery(taskId))
   const { task, project, feed, activeRun, lastRun } = data
   const queryClient = useQueryClient()
+  const updateTaskFn = useServerFn(updateTask)
+  const runTaskFn = useServerFn(runTask)
+  const cancelRunFn = useServerFn(cancelRun)
+  const duplicateTaskFn = useServerFn(duplicateTask)
+  const deleteTaskFn = useServerFn(deleteTask)
   const running = activeRun != null
 
   // The final agent message of the last successful run — the "closed loop".
@@ -33,7 +48,7 @@ function TaskDetail() {
       : null
 
   // Polling while a run is active is handled declaratively by taskQuery's
-  // refetchInterval (see src/lib/tracker.ts).
+  // refetchInterval (see src/lib/queries.ts).
 
   const [desc, setDesc] = useState(task.description)
   useEffect(() => setDesc(task.description), [task.id, task.description])
@@ -41,24 +56,24 @@ function TaskDetail() {
   const patch = useMutation({
     mutationFn: (
       data: Partial<{ status: TaskStatus; priority: TaskPriority; description: string; title: string }>,
-    ) => updateTask({ data: { taskId, ...data } }),
+    ) => updateTaskFn({ data: { taskId, ...data } }),
     onSuccess: () =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['task', taskId] }),
-        queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] }),
-        queryClient.invalidateQueries({ queryKey: ['all-tasks'] }),
+        queryClient.invalidateQueries({ queryKey: taskQuery(taskId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: tasksQuery(task.projectId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
       ]),
   })
 
   const refreshTask = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['task', taskId] }),
-      queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] }),
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] }),
+      queryClient.invalidateQueries({ queryKey: taskQuery(taskId).queryKey }),
+      queryClient.invalidateQueries({ queryKey: tasksQuery(task.projectId).queryKey }),
+      queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
     ])
-  const run = useMutation({ mutationFn: () => runTask({ data: { taskId } }), onSuccess: refreshTask })
+  const run = useMutation({ mutationFn: () => runTaskFn({ data: { taskId } }), onSuccess: refreshTask })
   const cancel = useMutation({
-    mutationFn: (runId: string) => cancelRun({ data: { runId } }),
+    mutationFn: (runId: string) => cancelRunFn({ data: { runId } }),
     onSuccess: refreshTask,
   })
 
@@ -68,21 +83,21 @@ function TaskDetail() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const duplicate = useMutation({
-    mutationFn: () => duplicateTask({ data: { taskId } }),
+    mutationFn: () => duplicateTaskFn({ data: { taskId } }),
     onSuccess: async (copy) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] }),
-        queryClient.invalidateQueries({ queryKey: ['all-tasks'] }),
+        queryClient.invalidateQueries({ queryKey: tasksQuery(task.projectId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
       ])
       navigate({ to: '/app/task/$taskId', params: { taskId: copy.id } })
     },
   })
   const remove = useMutation({
-    mutationFn: () => deleteTask({ data: { taskId } }),
+    mutationFn: () => deleteTaskFn({ data: { taskId } }),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] }),
-        queryClient.invalidateQueries({ queryKey: ['all-tasks'] }),
+        queryClient.invalidateQueries({ queryKey: tasksQuery(task.projectId).queryKey }),
+        queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
       ])
       navigate({ to: '/app/$projectId', params: { projectId: task.projectId } })
     },

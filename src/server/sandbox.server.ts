@@ -5,13 +5,24 @@
 import { createSecrets, defineSandbox, defineWorkspace } from '@tanstack/ai-sandbox'
 import { railwaySandbox } from '@tanstack/ai-sandbox-railway'
 
-// Railway's sandbox image ships the `claude` CLI. Install it only if a custom
-// image lacks it; `--include=optional` pulls the platform-native binary.
-const CLAUDE_CLI_SETUP =
-  'command -v claude >/dev/null 2>&1 && claude --version || npm install -g @anthropic-ai/claude-code --include=optional'
+// Railway's sandbox image ships the `claude` CLI, so this usually just checks
+// the version. If it's missing, install it and check again, with one retry:
+// npm can exit 0 while leaving the CLI broken, and `--include=optional` pulls
+// the platform-native binary.
+const CLAUDE_CLI_INSTALL = 'npm install -g @anthropic-ai/claude-code --include=optional && claude --version'
+const CLAUDE_CLI_SETUP = `claude --version || { ${CLAUDE_CLI_INSTALL} ; } || { ${CLAUDE_CLI_INSTALL} ; }`
 
 /** The model Claude Code runs. Aliases like `sonnet` resolve to the latest version. */
-export const AGENT_MODEL = process.env.DISPATCH_MODEL || 'sonnet'
+export const AGENT_MODEL = () => process.env.DISPATCH_MODEL || 'sonnet'
+
+/**
+ * The Railway sandbox provider. It reads RAILWAY_TOKEN (a project token) or
+ * RAILWAY_API_TOKEN, plus RAILWAY_ENVIRONMENT_ID, so sandboxes land in this
+ * app's own environment. The idle timeout stays at the plan default (Trial
+ * and Free allow at most 5 minutes); Railway doesn't reap a sandbox while a
+ * command is still running in it.
+ */
+export const sandboxProvider = () => railwaySandbox()
 
 /** Environment variables a run needs that aren't set, with what each is for. */
 export function missingRunConfig(): string[] {
@@ -32,11 +43,7 @@ export function missingRunConfig(): string[] {
 export function sandboxForRun(runId: string, onReady: (sandboxId: string) => void) {
   return defineSandbox({
     id: `dispatch-${runId}`,
-    // Reads RAILWAY_TOKEN (a project token) or RAILWAY_API_TOKEN, plus
-    // RAILWAY_ENVIRONMENT_ID, so sandboxes land in this app's own environment.
-    // The idle timeout stays at the plan default (Trial and Free allow at most
-    // 5 minutes); a running Claude Code session keeps the sandbox alive anyway.
-    provider: railwaySandbox(),
+    provider: sandboxProvider(),
     workspace: defineWorkspace({
       source: { type: 'none' },
       setup: ({ serial }) => serial(CLAUDE_CLI_SETUP),

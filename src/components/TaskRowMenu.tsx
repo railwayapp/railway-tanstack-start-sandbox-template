@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { deleteTask, duplicateTask, updateTask } from '@/lib/tracker'
-import { Menu } from '@/components/Menu'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { useServerFn } from '@tanstack/react-start'
+import { allTasksQuery, taskQuery, tasksQuery } from '~/lib/queries'
+import { deleteTask, duplicateTask, updateTask } from '~/server/tracker.functions'
+import { Menu } from '~/components/Menu'
+import { ConfirmDialog } from '~/components/ConfirmDialog'
 
 export function TaskRowMenu({
   taskId,
@@ -14,20 +16,26 @@ export function TaskRowMenu({
   title: string
 }) {
   const queryClient = useQueryClient()
+  const updateTaskFn = useServerFn(updateTask)
+  const duplicateTaskFn = useServerFn(duplicateTask)
+  const deleteTaskFn = useServerFn(deleteTask)
   const [confirming, setConfirming] = useState(false)
   const refresh = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] }),
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] }),
-      queryClient.invalidateQueries({ queryKey: ['task', taskId] }),
+      queryClient.invalidateQueries({ queryKey: tasksQuery(projectId).queryKey }),
+      queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: taskQuery(taskId).queryKey }),
     ])
 
-  const duplicate = useMutation({ mutationFn: () => duplicateTask({ data: { taskId } }), onSuccess: refresh })
-  const markDone = useMutation({
-    mutationFn: () => updateTask({ data: { taskId, status: 'done' } }),
+  const duplicate = useMutation({
+    mutationFn: () => duplicateTaskFn({ data: { taskId } }),
     onSuccess: refresh,
   })
-  const remove = useMutation({ mutationFn: () => deleteTask({ data: { taskId } }), onSuccess: refresh })
+  const markDone = useMutation({
+    mutationFn: () => updateTaskFn({ data: { taskId, status: 'done' } }),
+    onSuccess: refresh,
+  })
+  const remove = useMutation({ mutationFn: () => deleteTaskFn({ data: { taskId } }), onSuccess: refresh })
 
   return (
     <>

@@ -1,10 +1,10 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { MiniDispatch } from '@/components/MiniDispatch'
-import { runnerStatusQuery } from '@/lib/tracker'
+import { MiniDispatch } from '~/components/MiniDispatch'
+import { runReadinessQuery } from '~/lib/queries'
 
 export const Route = createFileRoute('/')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(runnerStatusQuery),
+  loader: ({ context }) => context.queryClient.query(runReadinessQuery),
   component: Home,
 })
 
@@ -44,7 +44,7 @@ const STACK = [
 ]
 
 function Home() {
-  const { data: runner } = useSuspenseQuery(runnerStatusQuery)
+  const { data: runner } = useSuspenseQuery(runReadinessQuery)
   return (
     <div className="home">
       <nav className="home-nav">

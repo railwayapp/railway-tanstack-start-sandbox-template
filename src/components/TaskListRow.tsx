@@ -1,8 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { TaskRowMenu } from '@/components/TaskRowMenu'
-import { runTask } from '@/lib/tracker'
-import type { TaskPriority, TaskStatus } from '@/db/schema'
+import { useServerFn } from '@tanstack/react-start'
+import { TaskRowMenu } from '~/components/TaskRowMenu'
+import { allTasksQuery, taskQuery, tasksQuery } from '~/lib/queries'
+import { runTask } from '~/server/tracker.functions'
+import type { TaskPriority, TaskStatus } from '~/server/schema'
 
 type RowTask = {
   id: string
@@ -27,12 +29,13 @@ export function TaskListRow({
   lastAction?: string
 }) {
   const queryClient = useQueryClient()
+  const runTaskFn = useServerFn(runTask)
   const assign = useMutation({
-    mutationFn: () => runTask({ data: { taskId: task.id } }),
+    mutationFn: () => runTaskFn({ data: { taskId: task.id } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] })
-      queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['task', task.id] })
+      queryClient.invalidateQueries({ queryKey: tasksQuery(task.projectId).queryKey })
+      queryClient.invalidateQueries({ queryKey: allTasksQuery.queryKey })
+      queryClient.invalidateQueries({ queryKey: taskQuery(task.id).queryKey })
     },
   })
 

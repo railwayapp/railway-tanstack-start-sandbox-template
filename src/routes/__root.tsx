@@ -1,7 +1,12 @@
+/// <reference types="vite/client" />
 import type { ReactNode } from 'react'
-import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import type { QueryClient } from '@tanstack/react-query'
-import appCss from '../styles/app.css?url'
+import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
+import { NotFound } from '~/components/NotFound'
+import appCss from '~/styles/app.css?url'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -27,24 +32,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   shellComponent: RootDocument,
   component: () => <Outlet />,
-  errorComponent: ({ error }) => (
-    <div className="fallback-page">
-      <h1>Something broke</h1>
-      <p>{error instanceof Error ? error.message : 'An unexpected error occurred.'}</p>
-      <Link to="/app/all" className="btn primary">
-        Back to the board
-      </Link>
-    </div>
-  ),
-  notFoundComponent: () => (
-    <div className="fallback-page">
-      <h1>Not found</h1>
-      <p>That page or task doesn't exist (anymore).</p>
-      <Link to="/app/all" className="btn primary">
-        Back to the board
-      </Link>
-    </div>
-  ),
+  errorComponent: DefaultCatchBoundary,
+  notFoundComponent: () => <NotFound />,
 })
 
 function RootDocument({ children }: { children: ReactNode }) {
@@ -55,6 +44,8 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <TanStackRouterDevtools position="bottom-right" />
+        <ReactQueryDevtools buttonPosition="bottom-left" />
         <Scripts />
       </body>
     </html>

@@ -1,6 +1,6 @@
 # Dispatch: TanStack Start + AI sandboxes on Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/LnGwdz?utm_medium=integration&utm_source=button&utm_campaign=tanstack-start-sandbox)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/tanstack-start-ai-railway-sandboxes?utm_medium=integration&utm_source=button&utm_campaign=tanstack-start-sandbox)
 
 A work tracker built with [TanStack Start](https://tanstack.com/start) and [TanStack AI](https://tanstack.com/ai), deployed on [Railway](https://railway.com). Every task has a **Run** button. Press it and a Railway sandbox boots, [Claude Code](https://docs.claude.com/en/docs/claude-code) works the task inside it, and each step lands in the task's activity feed.
 

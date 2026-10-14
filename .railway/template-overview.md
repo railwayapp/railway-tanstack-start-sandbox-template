@@ -1,6 +1,6 @@
 # Deploy and Host TanStack Start with AI Sandboxes on Railway
 
-Dispatch is a work tracker built on [TanStack Start](https://tanstack.com/start) and [TanStack AI](https://tanstack.com/ai). Every task has a Run button: press it and a Railway sandbox boots, Claude Code works the task inside it, and each step lands in the task's activity feed.
+Handoff is a work tracker built on [TanStack Start](https://tanstack.com/start) and [TanStack AI](https://tanstack.com/ai). Every task has a Run button: press it and a Railway sandbox boots, Claude Code works the task inside it, and each step lands in the task's activity feed.
 
 ## About Hosting TanStack Start with AI Sandboxes
 
@@ -29,15 +29,15 @@ Railway builds the app with Railpack and runs the Nitro output. Before each depl
 
 ### Implementation Details
 
-The deploy form asks for `ANTHROPIC_API_KEY`. The template also sets these variables on the `Dispatch-Web` service:
+The deploy form asks for `ANTHROPIC_API_KEY`. The template also sets these variables on the `Handoff-Web` service:
 
 ```
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-DISPATCH_PASSWORD=${{secret(24)}}   # sign in with this
+HANDOFF_PASSWORD=${{secret(24)}}   # sign in with this
 SESSION_SECRET=${{secret(32)}}
 ```
 
-After deploying, create a project token for the environment (project Settings → Tokens) and add it to the `Dispatch-Web` service as `RAILWAY_TOKEN`. A project token can only reach this environment, so the app never holds an account-wide credential.
+After deploying, create a project token for the environment (project Settings → Tokens) and add it to the `Handoff-Web` service as `RAILWAY_TOKEN`. A project token can only reach this environment, so the app never holds an account-wide credential.
 
 ## Why Deploy TanStack Start with AI Sandboxes on Railway?
 

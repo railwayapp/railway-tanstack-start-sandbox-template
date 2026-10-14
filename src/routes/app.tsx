@@ -59,7 +59,7 @@ function AppShell() {
             className="dot"
             style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--accent)' }}
           />
-          Dispatch
+          Handoff
         </Link>
         <span className="label">Projects</span>
         <Link to="/app/all" className="proj-link">

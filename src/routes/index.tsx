@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { MiniDispatch } from '~/components/MiniDispatch'
+import { MiniHandoff } from '~/components/MiniHandoff'
 import { runReadinessQuery } from '~/lib/queries'
 
 export const Route = createFileRoute('/')({
@@ -22,7 +22,7 @@ const BENEFITS = [
   {
     k: '03 · COMPUTE',
     t: 'Sandboxes as a primitive',
-    d: 'When you run a task, Dispatch asks TanStack AI for a sandbox, and the Railway provider boots one in a few seconds. Claude Code works inside it, and the sandbox is destroyed when the run ends.',
+    d: 'When you run a task, Handoff asks TanStack AI for a sandbox, and the Railway provider boots one in a few seconds. Claude Code works inside it, and the sandbox is destroyed when the run ends.',
   },
   {
     k: '04 · SHIP',
@@ -50,11 +50,11 @@ function Home() {
       <nav className="home-nav">
         <span className="wordmark">
           <span className="dot" />
-          Dispatch
+          Handoff
         </span>
         <div style={{ display: 'flex', gap: 10 }}>
           <Link to="/app" className="btn primary">
-            Open Dispatch
+            Open Handoff
           </Link>
         </div>
       </nav>
@@ -66,14 +66,14 @@ function Home() {
             Run TanStack on <em>Railway.</em>
           </h1>
           <p className="sub">
-            Dispatch is a work tracker built on <strong>TanStack Start</strong>, <strong>TanStack AI</strong>,
+            Handoff is a work tracker built on <strong>TanStack Start</strong>, <strong>TanStack AI</strong>,
             and <strong>Postgres</strong>. Every task has a run button. Press it and a{' '}
             <strong>Railway sandbox</strong> boots, <strong>Claude Code</strong> works the task inside it, and
             every step lands in the task's activity feed.
           </p>
           <div className="hero-actions">
             <Link to="/app" className="btn primary">
-              Open Dispatch →
+              Open Handoff →
             </Link>
             <a
               className="btn"
@@ -85,7 +85,7 @@ function Home() {
             </a>
           </div>
         </div>
-        <MiniDispatch missing={runner.missing} />
+        <MiniHandoff missing={runner.missing} />
       </header>
 
       <section className="section stack-section">
@@ -117,7 +117,7 @@ function Home() {
       </section>
 
       <section className="section">
-        <h2>How Dispatch is wired</h2>
+        <h2>How Handoff is wired</h2>
         <p className="lede">One Start app, one database, and sandboxes created on demand.</p>
         <div className="arch">
           <div className="arch-node">
@@ -144,7 +144,7 @@ function Home() {
           also do from a script or an agent.
         </p>
         <div className="term api-term">
-          <div className="cmd">export AUTH="authorization: Bearer $DISPATCH_PASSWORD"</div>
+          <div className="cmd">export AUTH="authorization: Bearer $HANDOFF_PASSWORD"</div>
           <div className="cmd">curl -s -H "$AUTH" $APP_URL/api/v1/projects</div>
           <div className="out">
             [{'{'} "id": "…", "name": "Platform", "key": "PLA", … {'}'}]

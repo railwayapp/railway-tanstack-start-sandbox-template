@@ -16,11 +16,11 @@ const STALE_AFTER_MS = 60_000
 const RUN_TIMEOUT_MS = 15 * 60_000
 // Abort reasons. RUN_CANCEL_REASON is TanStack AI's marker for an explicit
 // cancel; anything else is a failure.
-const TIMEOUT_REASON = 'dispatch:timeout'
-const SHUTDOWN_REASON = 'dispatch:shutdown'
+const TIMEOUT_REASON = 'handoff:timeout'
+const SHUTDOWN_REASON = 'handoff:shutdown'
 
 const SYSTEM_PROMPT = [
-  'You are the Dispatch task agent. You work inside a fresh, disposable Railway sandbox.',
+  'You are the Handoff task agent. You work inside a fresh, disposable Railway sandbox.',
   'Your working directory is /workspace; keep files you create there.',
   'Do the task, check that it worked, and stop. Never ask questions: decide and act.',
 ].join('\n')

@@ -48,7 +48,7 @@ const FALLBACK_SCRIPT = [
   'SUMMARY: task executed in the sandbox',
 ]
 
-export function MiniDispatch({ missing }: { missing: string[] }) {
+export function MiniHandoff({ missing }: { missing: string[] }) {
   const ready = missing.length === 0
   const [view, setView] = useState<'board' | 'run'>('board')
   const [tasks, setTasks] = useState<MiniTask[]>(SAMPLE)
@@ -120,14 +120,14 @@ export function MiniDispatch({ missing }: { missing: string[] }) {
   }
 
   return (
-    <div className="mini" aria-label="Interactive preview of Dispatch with sample data">
+    <div className="mini" aria-label="Interactive preview of Handoff with sample data">
       <div className="mini-views" data-view={view}>
         {/* board view */}
         <div className="mini-view">
           <div className="mini-bar">
             <span className="mini-title">
               <span className="swatch" style={{ background: 'var(--accent)' }} />
-              Dispatch
+              Handoff
             </span>
           </div>
           <form

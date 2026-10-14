@@ -1,4 +1,4 @@
-# Dispatch: TanStack Start + AI sandboxes on Railway
+# Handoff: TanStack Start + AI sandboxes on Railway
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/tanstack-start-ai-railway-sandboxes?utm_medium=integration&utm_source=button&utm_campaign=tanstack-start-sandbox)
 
@@ -20,14 +20,14 @@ The sandbox work goes through TanStack AI's sandbox primitives: `defineSandbox` 
 
 **Deploy:** click **Deploy on Railway** above and enter an `ANTHROPIC_API_KEY` from the [Anthropic Console](https://console.anthropic.com). Railway provisions the app and Postgres, generates the access password, runs the migrations, and gives you a URL.
 
-**Give it a project token.** Dispatch creates sandboxes with a Railway project token, which can only reach this project's environment:
+**Give it a project token.** Handoff creates sandboxes with a Railway project token, which can only reach this project's environment:
 
 1. In the new project, open **Settings → Tokens** and create a token for the `production` environment.
-2. Add it to the `Dispatch-Web` service as a variable named `RAILWAY_TOKEN`, and deploy the change.
+2. Add it to the `Handoff-Web` service as a variable named `RAILWAY_TOKEN`, and deploy the change.
 
 The app's Settings page links to the tokens page and shows what's still missing.
 
-Then sign in with the `DISPATCH_PASSWORD` variable Railway generated, open a task, and press **Run in Agent Sandbox**.
+Then sign in with the `HANDOFF_PASSWORD` variable Railway generated, open a task, and press **Run in Agent Sandbox**.
 
 **Run locally** (Node 24+, pnpm, Docker):
 
@@ -43,7 +43,7 @@ pnpm dev               # http://localhost:3000
 
 ```mermaid
 flowchart LR
-  browser["Browser"] -- "Run" --> web["Dispatch-Web<br/>TanStack Start"]
+  browser["Browser"] -- "Run" --> web["Handoff-Web<br/>TanStack Start"]
   web -- "chat() + withSandbox" --> sandbox["Railway sandbox<br/>Claude Code"]
   sandbox -- "AG-UI events" --> web
   web -- "activity rows" --> db[("Postgres")]
@@ -59,7 +59,7 @@ flowchart LR
 3. **A middleware records the activity feed.** [`src/server/activity-feed.server.ts`](src/server/activity-feed.server.ts) is a `defineChatMiddleware`: `onChunk` writes messages and tool calls (with their output) to Postgres as they happen, and its `sandbox.onFileCreate` / `onFileChange` hooks collect the files the agent changed. The task page polls the feed while a run is active.
 4. **Runs end cleanly.** A finished run moves the task to In Review with the agent's summary. Cancelling (with TanStack AI's `RUN_CANCEL_REASON`) or failing puts it back in To do. Every run has a 15-minute limit. On a redeploy, the old server cancels its runs as it shuts down. If a server dies mid-run, the run's heartbeat goes stale; it's marked failed and its sandbox is destroyed.
 
-The task is the `chat()` thread and each run is one execution of it. Runs are driven on the server, not streamed to a browser tab, so closing the tab doesn't stop the agent. TanStack AI also supports [durable runs](https://github.com/TanStack/ai/blob/main/docs/sandbox/durable-runs.md) that survive a server restart by journaling inside the sandbox; Dispatch keeps runs short and simple instead.
+The task is the `chat()` thread and each run is one execution of it. Runs are driven on the server, not streamed to a browser tab, so closing the tab doesn't stop the agent. TanStack AI also supports [durable runs](https://github.com/TanStack/ai/blob/main/docs/sandbox/durable-runs.md) that survive a server restart by journaling inside the sandbox; Handoff keeps runs short and simple instead.
 
 The sandboxes are created in the app's own Railway environment, using `RAILWAY_ENVIRONMENT_ID`, which Railway sets on every deployment.
 
@@ -69,7 +69,7 @@ The template provisions two services:
 
 | Service | Configuration |
 | --- | --- |
-| **Dispatch-Web** (this repo) | Build: Railpack (`pnpm build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
+| **Handoff-Web** (this repo) | Build: Railpack (`pnpm build`)<br>Start: `node .output/server/index.mjs`<br>Pre-deploy: `node scripts/migrate.mjs`<br>Health check: `/api/health`<br>A generated public domain |
 | **Postgres** | Railway Postgres |
 
 ### Environment variables
@@ -77,12 +77,12 @@ The template provisions two services:
 | Variable | Set by | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | Template: `${{Postgres.DATABASE_URL}}` | Postgres over the private network |
-| `DISPATCH_PASSWORD` | Template: `${{secret(24)}}` | Access password for the app and the API |
+| `HANDOFF_PASSWORD` | Template: `${{secret(24)}}` | Access password for the app and the API |
 | `SESSION_SECRET` | Template: `${{secret(32)}}` | Encrypts the session cookie |
 | `ANTHROPIC_API_KEY` | You, on the deploy form | Claude Code runs on it inside each sandbox |
 | `RAILWAY_TOKEN` | You, after deploy | A project token for this environment. Creates the sandboxes. (`RAILWAY_API_TOKEN`, an account or workspace token, also works but can reach everything you own.) |
 | `RAILWAY_ENVIRONMENT_ID` | Railway | Where sandboxes are created |
-| `DISPATCH_MODEL` | Optional | The model Claude Code uses (default `sonnet`) |
+| `HANDOFF_MODEL` | Optional | The model Claude Code uses (default `sonnet`) |
 
 ### What happens on each deploy
 
@@ -100,7 +100,7 @@ Everything except the landing page, `/login` and `/api/health` needs the access 
 - **For the REST API**, send it as a bearer token. The API doesn't accept the session cookie, so a cross-site form can't write with a signed-in visitor's cookie.
 
 ```bash
-export AUTH="authorization: Bearer $DISPATCH_PASSWORD"
+export AUTH="authorization: Bearer $HANDOFF_PASSWORD"
 curl -s -H "$AUTH" $APP_URL/api/v1/projects
 curl -s -X POST -H "$AUTH" -H 'content-type: application/json' \
   $APP_URL/api/v1/projects/<projectId>/tasks -d '{"title": "Fetch the top HN stories"}'
@@ -111,7 +111,7 @@ curl -s -X DELETE -H "$AUTH" $APP_URL/api/v1/tasks/<taskId>/run   # cancel
 
 The UI and the API share one set of operations ([`src/server/ops.server.ts`](src/server/ops.server.ts)). Webhooks (Settings → Webhooks) POST task and run events to your URLs.
 
-Without `DISPATCH_PASSWORD`, the app refuses access in production and runs open in local development. In production it also refuses to start sessions without a `SESSION_SECRET` of 32+ characters.
+Without `HANDOFF_PASSWORD`, the app refuses access in production and runs open in local development. In production it also refuses to start sessions without a `SESSION_SECRET` of 32+ characters.
 
 ## Developing locally
 
@@ -162,4 +162,4 @@ Runs need `RAILWAY_TOKEN` and `RAILWAY_ENVIRONMENT_ID` locally. Use the project 
 - **Limit what the agent can do.** Add a `defineSandboxPolicy` to the sandbox definition to deny commands.
 - **Reach your other services.** Pass `networkIsolation: 'PRIVATE'` to `railwaySandbox()` and the sandbox joins the environment's private network.
 - **Preview environments.** A project token only works in the environment it was created for, so a PR environment needs its own `RAILWAY_TOKEN` before its runs work.
-- **Scaling out.** Runs are driven by the server that started them, and cancel only reaches runs on the same replica. Keep the `Dispatch-Web` service at one replica, or move run control to a queue.
+- **Scaling out.** Runs are driven by the server that started them, and cancel only reaches runs on the same replica. Keep the `Handoff-Web` service at one replica, or move run control to a queue.

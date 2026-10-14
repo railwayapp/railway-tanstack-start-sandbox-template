@@ -7,7 +7,7 @@ import { createWebhook, deleteWebhook, updateWebhook } from '~/server/tracker.fu
 import { WEBHOOK_TOPICS } from '~/lib/topics'
 
 export const Route = createFileRoute('/app/webhooks')({
-  head: () => ({ meta: [{ title: 'Webhooks · Dispatch' }] }),
+  head: () => ({ meta: [{ title: 'Webhooks · Handoff' }] }),
   loader: ({ context }) => context.queryClient.query(webhooksQuery),
   component: WebhooksPage,
 })
@@ -51,8 +51,8 @@ function WebhooksPage() {
     <div className="task-page">
       <h1 className="page-title">Webhooks</h1>
       <p className="page-lede">
-        Dispatch POSTs a JSON payload — <code className="mono">{'{topic, timestamp, data}'}</code> with an{' '}
-        <code className="mono">x-dispatch-topic</code> header — to each destination subscribed to a topic.
+        Handoff POSTs a JSON payload — <code className="mono">{'{topic, timestamp, data}'}</code> with an{' '}
+        <code className="mono">x-handoff-topic</code> header — to each destination subscribed to a topic.
       </p>
 
       <form
@@ -64,7 +64,7 @@ function WebhooksPage() {
       >
         <input
           type="url"
-          placeholder="https://example.com/hooks/dispatch"
+          placeholder="https://example.com/hooks/handoff"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />

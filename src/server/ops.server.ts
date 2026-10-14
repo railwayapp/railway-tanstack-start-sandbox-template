@@ -25,7 +25,7 @@ export async function emitWebhook(topic: WebhookTopic, data: Record<string, unkn
       if (!hook.topics.includes(topic)) continue
       void fetch(hook.url, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-dispatch-topic': topic },
+        headers: { 'content-type': 'application/json', 'x-handoff-topic': topic },
         body,
         signal: AbortSignal.timeout(5000),
       }).catch(() => {})

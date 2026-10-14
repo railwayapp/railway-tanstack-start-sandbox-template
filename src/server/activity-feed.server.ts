@@ -118,7 +118,7 @@ export function activityFeed(taskId: string, runId: string) {
 
   return {
     middleware: defineChatMiddleware({
-      name: 'dispatch-activity-feed',
+      name: 'handoff-activity-feed',
       onChunk: (_ctx, chunk) => onChunk(chunk),
       // Run-scoped sandbox file hooks (see TanStack AI's sandbox observability docs).
       sandbox: {

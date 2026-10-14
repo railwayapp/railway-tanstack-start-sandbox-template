@@ -1,6 +1,6 @@
 {
   "name": "railway-tanstack-start-sandbox-template",
-  "description": "Dispatch: a TanStack Start work tracker where an AI agent runs each task in a Railway sandbox.",
+  "description": "Handoff: a TanStack Start work tracker where an AI agent runs each task in a Railway sandbox.",
   "repository": {
     "type": "git",
     "url": "https://github.com/railwayapp/railway-tanstack-start-sandbox-template"

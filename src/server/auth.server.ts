@@ -1,5 +1,5 @@
-// Server-only: the access password gate. Dispatch has one shared password,
-// DISPATCH_PASSWORD (the template generates it). The browser signs in once and
+// Server-only: the access password gate. Handoff has one shared password,
+// HANDOFF_PASSWORD (the template generates it). The browser signs in once and
 // keeps an encrypted session cookie; REST API clients send the same password
 // as a bearer token.
 import { createHash, timingSafeEqual } from 'node:crypto'
@@ -10,13 +10,21 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 type AuthSession = { signedIn?: boolean }
 
+/**
+ * The access password. Deploys made before the app was renamed from Dispatch
+ * still carry DISPATCH_PASSWORD, so read it as a fallback.
+ */
+export function accessPassword() {
+  return process.env.HANDOFF_PASSWORD || process.env.DISPATCH_PASSWORD
+}
+
 /** True when no password is configured outside production: local dev runs open. */
 export function authDisabled() {
-  return !process.env.DISPATCH_PASSWORD && !isProduction
+  return !accessPassword() && !isProduction
 }
 
 export function passwordMatches(candidate: string) {
-  const password = process.env.DISPATCH_PASSWORD
+  const password = accessPassword()
   if (!password) return false
   // Hash both sides so the comparison is constant-time regardless of length.
   const a = createHash('sha256').update(candidate).digest()
@@ -36,7 +44,7 @@ function sessionSecret() {
 export function useAuthSession() {
   const password = sessionSecret()
   return useSession<AuthSession>({
-    name: 'dispatch-session',
+    name: 'handoff-session',
     password,
     cookie: {
       secure: isProduction,

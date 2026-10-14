@@ -15,7 +15,7 @@ export const Route = createFileRoute('/app/task/$taskId')({
     const { task } = await context.queryClient.query(taskQuery(params.taskId))
     return { title: task.title }
   },
-  head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.title ?? 'Task'} · Dispatch` }] }),
+  head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.title ?? 'Task'} · Handoff` }] }),
   // Rendered inside the /app layout, so the sidebar stays.
   notFoundComponent: () => <NotFound />,
   component: TaskDetail,

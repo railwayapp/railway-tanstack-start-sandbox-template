@@ -8,7 +8,7 @@ import { signOut } from '~/server/auth.functions'
 import { wipeAllData } from '~/server/tracker.functions'
 
 export const Route = createFileRoute('/app/settings')({
-  head: () => ({ meta: [{ title: 'Settings · Dispatch' }] }),
+  head: () => ({ meta: [{ title: 'Settings · Handoff' }] }),
   loader: ({ context }) => context.queryClient.query(runConfigQuery),
   component: SettingsPage,
 })
@@ -18,7 +18,7 @@ const RUN_SETTINGS = [
   { name: 'ANTHROPIC_API_KEY', hint: 'Claude Code runs on this key inside each sandbox.' },
   {
     name: 'RAILWAY_TOKEN',
-    hint: 'A project token for this environment. Dispatch creates sandboxes with it, and it can reach nothing outside this environment.',
+    hint: 'A project token for this environment. Handoff creates sandboxes with it, and it can reach nothing outside this environment.',
   },
   { name: 'RAILWAY_ENVIRONMENT_ID', hint: 'Where sandboxes are created. Railway sets it automatically.' },
 ]
@@ -80,7 +80,7 @@ function SettingsPage() {
         })}
         <div className="setting-row">
           <div className="setting-info">
-            <label className="mono">DISPATCH_MODEL</label>
+            <label className="mono">HANDOFF_MODEL</label>
             <span className="setting-hint">Optional. The model Claude Code uses.</span>
           </div>
           <span className="setting-badge mono">{runner.model}</span>

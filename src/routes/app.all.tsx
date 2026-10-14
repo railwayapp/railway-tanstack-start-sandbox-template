@@ -8,7 +8,7 @@ import { TaskListRow } from '~/components/TaskListRow'
 import type { TaskPriority, TaskStatus } from '~/server/schema'
 
 export const Route = createFileRoute('/app/all')({
-  head: () => ({ meta: [{ title: 'All projects · Dispatch' }] }),
+  head: () => ({ meta: [{ title: 'All projects · Handoff' }] }),
   loader: async ({ context }) => {
     await Promise.all([context.queryClient.query(allTasksQuery), context.queryClient.query(projectsQuery)])
   },

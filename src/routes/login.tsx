@@ -13,7 +13,7 @@ export const Route = createFileRoute('/login')({
     return { passwordConfigured: auth.passwordConfigured }
   },
   headers: () => ({ 'Cache-Control': 'private, no-store' }),
-  head: () => ({ meta: [{ title: 'Sign in · Dispatch' }] }),
+  head: () => ({ meta: [{ title: 'Sign in · Handoff' }] }),
   component: Login,
 })
 
@@ -40,7 +40,7 @@ function Login() {
 
   return (
     <div className="fallback-page">
-      <h1>Sign in to Dispatch</h1>
+      <h1>Sign in to Handoff</h1>
       {passwordConfigured ? (
         <form
           method="post"
@@ -53,7 +53,7 @@ function Login() {
           {/* Disabled until hydrated, so a click before JS loads can't post the form. */}
           <fieldset disabled={!hydrated || login.isPending}>
             <p>
-              Enter the access password. It's the <code className="mono">DISPATCH_PASSWORD</code> variable on
+              Enter the access password. It's the <code className="mono">HANDOFF_PASSWORD</code> variable on
               this service in Railway.
             </p>
             <input
@@ -73,7 +73,7 @@ function Login() {
         </form>
       ) : (
         <p>
-          No access password is set. Add a <code className="mono">DISPATCH_PASSWORD</code> variable to this
+          No access password is set. Add a <code className="mono">HANDOFF_PASSWORD</code> variable to this
           service in Railway, then redeploy.
         </p>
       )}

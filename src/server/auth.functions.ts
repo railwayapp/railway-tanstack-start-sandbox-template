@@ -1,13 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { authDisabled, isAuthenticated, passwordMatches, useAuthSession } from './auth.server'
+import { accessPassword, authDisabled, isAuthenticated, passwordMatches, useAuthSession } from './auth.server'
 
 export const getAuthState = createServerFn({ method: 'GET' }).handler(async () => {
   setResponseHeader('Cache-Control', 'private, no-store')
   return {
     signedIn: await isAuthenticated(),
-    passwordConfigured: !!process.env.DISPATCH_PASSWORD,
+    passwordConfigured: !!accessPassword(),
     authDisabled: authDisabled(),
   }
 })

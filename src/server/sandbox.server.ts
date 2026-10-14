@@ -1,4 +1,4 @@
-// Server-only: how Dispatch gets a sandbox. This is the whole integration with
+// Server-only: how Handoff gets a sandbox. This is the whole integration with
 // TanStack AI sandboxes: a Railway provider, a workspace, and a lifecycle.
 // `withSandbox(definition)` (see runs.server.ts) creates the sandbox, runs the
 // workspace setup, and hands it to the Claude Code harness.
@@ -12,8 +12,11 @@ import { railwaySandbox } from '@tanstack/ai-sandbox-railway'
 const CLAUDE_CLI_INSTALL = 'npm install -g @anthropic-ai/claude-code --include=optional && claude --version'
 const CLAUDE_CLI_SETUP = `claude --version || { ${CLAUDE_CLI_INSTALL} ; } || { ${CLAUDE_CLI_INSTALL} ; }`
 
-/** The model Claude Code runs. Aliases like `sonnet` resolve to the latest version. */
-export const AGENT_MODEL = () => process.env.DISPATCH_MODEL || 'sonnet'
+/**
+ * The model Claude Code runs. Aliases like `sonnet` resolve to the latest version.
+ * DISPATCH_MODEL is the pre-rename name, still set on older deploys.
+ */
+export const AGENT_MODEL = () => process.env.HANDOFF_MODEL || process.env.DISPATCH_MODEL || 'sonnet'
 
 /**
  * The Railway sandbox provider. It reads RAILWAY_TOKEN (a project token) or
@@ -42,7 +45,7 @@ export function missingRunConfig(): string[] {
 /** One disposable sandbox per run, destroyed when the run ends. */
 export function sandboxForRun(runId: string, onReady: (sandboxId: string) => void) {
   return defineSandbox({
-    id: `dispatch-${runId}`,
+    id: `handoff-${runId}`,
     provider: sandboxProvider(),
     workspace: defineWorkspace({
       source: { type: 'none' },
